@@ -1,0 +1,1009 @@
+<title>リストボール・スピンメーター</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* Layout: instrument column (tachometer, controls, tuning) beside an analysis column (stats, charts); history spans below */
+:root{
+  --bg:#E9EDF1; --surface:#FFFFFF; --surface-2:#F2F4F7; --ink:#141D26; --muted:#5B6875; --line:#D2D9E1;
+  --accent:#2457C9; --accent-ink:#FFFFFF; --danger:#B42318;
+  --z1:#F9D7AE; --z2:#F4AE68; --z3:#E5862F; --z4:#C45F1C; --z5:#8E3C10;
+  --f-display:"Chakra Petch","Noto Sans JP",system-ui,sans-serif;
+  --f-body:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E141A; --surface:#151E27; --surface-2:#1B2631; --ink:#E5EBF1; --muted:#93A1AF; --line:#2A3744;
+  --accent:#6E9BFF; --accent-ink:#0B1220; --danger:#FF8A80;
+  --z1:#5C3416; --z2:#8A4A1C; --z3:#BC6722; --z4:#E98B3B; --z5:#FFBE7A; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0E141A; --surface:#151E27; --surface-2:#1B2631; --ink:#E5EBF1; --muted:#93A1AF; --line:#2A3744;
+  --accent:#6E9BFF; --accent-ink:#0B1220; --danger:#FF8A80;
+  --z1:#5C3416; --z2:#8A4A1C; --z3:#BC6722; --z4:#E98B3B; --z5:#FFBE7A; color-scheme:dark }
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1140px;margin:0 auto;padding-block:20px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;margin-bottom:18px}
+.eyebrow{font-family:var(--f-display);font-size:12px;letter-spacing:.18em;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-size:30px;line-height:1.15;margin:2px 0 0;font-weight:700;letter-spacing:.02em;text-wrap:balance}
+h1 small{font-size:15px;color:var(--muted);font-weight:500;margin-left:10px;letter-spacing:.04em}
+.lede{color:var(--muted);max-width:52ch;margin:0;font-size:13px}
+h2{font-family:var(--f-display);font-size:15px;margin:0;letter-spacing:.04em;font-weight:700}
+h3{font-size:13px;margin:0;color:var(--muted);font-weight:500}
+
+.grid{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+
+/* instrument */
+.gauge{position:relative;width:100%;max-width:340px;margin:0 auto;aspect-ratio:1/0.86}
+.gauge canvas{width:100%;height:100%;display:block}
+.readout{position:absolute;left:0;right:0;top:44%;text-align:center;pointer-events:none}
+.rpm{font-family:var(--f-display);font-weight:700;font-size:54px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.rpm-unit{font-family:var(--f-display);font-size:12px;letter-spacing:.2em;color:var(--muted);margin-top:4px}
+.zone-chip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:3px 10px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface-2);font-size:12px;font-weight:500}
+.zone-chip i{width:10px;height:10px;border-radius:3px;background:var(--line);display:inline-block}
+.subread{display:flex;justify-content:center;gap:18px;font-family:var(--f-display);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.subread b{color:var(--ink);font-weight:600}
+
+.controls{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-weight:500;
+  border-radius:10px;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-size:16px;font-weight:700;padding:14px}
+.btn.primary.stop{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.small{padding:6px 10px;font-size:12px;border-radius:8px}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>.btn{flex:1 1 140px}
+.note{font-size:12px;color:var(--muted);margin:0}
+.msg{font-size:12.5px;border-radius:8px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);margin:0}
+.msg.err{border-color:var(--danger)}
+.msg b{font-weight:700}
+
+.meter{position:relative;height:10px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.meter .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--muted);transition:width .1s linear}
+.meter .fill.on{background:var(--accent)}
+.meter .gate{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.meter-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+.meter-row span:last-child{font-family:var(--f-display);font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+.spec{width:100%;height:64px;display:block;border-radius:8px;background:var(--surface-2)}
+
+details.tune{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+details.tune>summary{cursor:pointer;font-weight:700;font-size:13px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.tune>summary::-webkit-details-marker{display:none}
+details.tune>summary::after{content:"＋";color:var(--muted)}
+details.tune[open]>summary::after{content:"－"}
+.tune-body{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field .lbl{font-size:12px;font-weight:500}
+.field input[type=number],.field select{font:inherit;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);min-width:0;width:100%}
+.field input[type=range]{width:100%;accent-color:var(--accent)}
+.inline{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.zones-in{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.zones-in input{text-align:right;font-family:var(--f-display)}
+
+/* analysis */
+.view-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.view-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.tag{font-size:11px;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.tag.live{color:var(--accent);border-color:var(--accent)}
+.tag.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:1px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.tag.live::before{animation:none}.meter .fill{transition:none}}
+.date{font-size:12px;color:var(--muted)}
+
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:14px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))} .stats .stat:last-child{grid-column:1/-1}}
+.stat{background:var(--surface);padding:12px 14px;min-width:0}
+.stat .k{font-size:11.5px;color:var(--muted)}
+.stat .v{font-family:var(--f-display);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+.stat .v small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
+
+.chart-block{margin-top:18px}
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.chart{position:relative;width:100%}
+.chart canvas{display:block;width:100%}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:7px;white-space:nowrap;
+  transform:translate(-50%,-100%);font-variant-numeric:tabular-nums;line-height:1.45;z-index:2}
+.tip b{font-family:var(--f-display);font-size:14px}
+
+.zbars{display:flex;flex-direction:column;gap:8px}
+.zbar{display:grid;grid-template-columns:150px minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:12.5px}
+@media (max-width:480px){.zbar{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.zbar .track{grid-column:1/-1;grid-row:2}.zbar .name br{display:none}.zbar .name small{margin-left:6px}}
+.zbar .name{display:flex;align-items:center;gap:7px;min-width:0}
+.zbar .name i{width:12px;height:12px;border-radius:3px;flex:none}
+.zbar .name small{color:var(--muted);font-size:11px;font-family:var(--f-display)}
+.zbar .track{height:14px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.zbar .track div{height:100%;border-radius:0 4px 4px 0}
+.zbar .val{text-align:right;font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.zbar .val small{color:var(--muted)}
+
+.history{margin-top:18px}
+.hist-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;margin-top:12px;align-items:start}
+@media (max-width:880px){.hist-grid{grid-template-columns:minmax(0,1fr)}}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:11.5px;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.n,th.n{text-align:right}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.sel{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+.empty{color:var(--muted);font-size:13px;padding:14px 0}
+.confirm{display:flex;gap:6px;align-items:center;font-size:12px}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}
+@media (max-width:720px){.how{grid-template-columns:minmax(0,1fr)}}
+.how p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+.how h3{color:var(--ink);font-weight:700}
+.hands{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.hand{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2);min-width:0}
+.hand .hn{font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.hand .hn span{font-family:var(--f-display);font-size:20px;font-variant-numeric:tabular-nums}
+.hand .hn span small{font-size:11px;color:var(--muted);margin-left:2px}
+.hand .hs{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.share{height:8px;border-radius:4px;overflow:hidden;display:flex;gap:2px;margin-top:10px;background:var(--surface)}
+.share div{height:100%}
+.hand-tools{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;font-size:12.5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{appearance:none;border:0;background:var(--surface);color:var(--ink);font:inherit;font-size:12px;padding:5px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+.marks{display:flex;flex-wrap:wrap;gap:6px}
+.mark{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;font-variant-numeric:tabular-nums;background:var(--surface)}
+.mark button{appearance:none;border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;border-radius:999px}
+.mark button:hover{color:var(--danger)}
+.prog{height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+.prog div{height:100%;width:0;background:var(--accent)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">WRIST BALL · SOUND TRAINING LOG</div>
+      <h1>スピンメーター<small>音で測るリストボール</small></h1>
+    </div>
+    <p class="lede">リストボールの「ブーン」という音の高さから回転数を推定し、どの強度でどれだけ回したかを記録します。</p>
+  </header>
+
+  <div class="grid">
+    <!-- instrument -->
+    <div class="col">
+      <section class="panel" aria-label="計測">
+        <div class="gauge">
+          <canvas id="gauge" aria-hidden="true"></canvas>
+          <div class="readout">
+            <div class="rpm" id="rpmNow">0</div>
+            <div class="rpm-unit">RPM（推定）</div>
+            <div class="zone-chip" id="zoneChip"><i></i><span>待機中</span></div>
+          </div>
+        </div>
+        <div class="subread"><span>音の高さ <b id="hzNow">—</b> Hz</span><span>経過 <b id="elNow">0:00</b></span></div>
+
+        <div class="controls">
+          <button class="btn primary" id="startBtn" type="button">● 計測スタート</button>
+          <button class="btn" id="swBtn" type="button" hidden>⇄ 手を持ち替えた（記録）</button>
+          <div class="row">
+            <label class="btn" for="fileIn" id="fileBtn">録音ファイルを解析</label>
+            <input type="file" id="fileIn" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden>
+          </div>
+          <div class="prog" id="prog" hidden><div></div></div>
+          <p class="msg" id="msg" hidden></p>
+          <div class="meter-row" title="黒い線より大きい音のときだけ回転中として記録します">
+            <span>音量</span>
+            <div class="meter"><div class="fill" id="lvFill"></div><div class="gate" id="lvGate"></div></div>
+            <span id="lvVal">— dB</span>
+          </div>
+          <canvas class="spec" id="spec" aria-label="周波数スペクトル"></canvas>
+          <p class="note">下の帯は今聞こえている音の成分です。縦線が検出した基音（とその倍音）。</p>
+        </div>
+
+        <details class="tune" id="tune">
+          <summary>校正と感度</summary>
+          <div class="tune-body">
+            <div class="field">
+              <label for="harm">音の高さ → 回転数の換算</label>
+              <select id="harm">
+                <option value="60">基音どおり（Hz × 60）</option>
+                <option value="30">2倍音を拾っている（Hz × 30）</option>
+                <option value="20">3倍音を拾っている（Hz × 20）</option>
+                <option value="custom">カスタム（校正値）</option>
+              </select>
+              <p class="note" id="calInfo"></p>
+            </div>
+            <div class="field">
+              <span class="lbl">カウンターの数値で校正</span>
+              <div class="inline">
+                <input type="number" id="calRpm" inputmode="numeric" min="500" max="30000" step="10" placeholder="例 8000" aria-label="カウンター表示のRPM">
+                <button class="btn small" id="calBtn" type="button" disabled>今の音で校正</button>
+              </div>
+              <p class="note">回転数カウンター付きのボールなら、一定の速さで回しながら表示値を入れて押してください。過去の記録にも反映されます。</p>
+            </div>
+            <div class="field">
+              <label for="gate">感度（この音量より大きいと記録）<span id="gateVal"></span></label>
+              <input type="range" id="gate" min="-90" max="-20" step="1">
+              <button class="btn small" id="autoGate" type="button" disabled>今の環境音から自動設定</button>
+            </div>
+            <div class="field">
+              <span class="lbl">ゾーンの境目（RPM）</span>
+              <div class="zones-in">
+                <input type="number" id="zb0" step="500" aria-label="Z1とZ2の境目">
+                <input type="number" id="zb1" step="500" aria-label="Z2とZ3の境目">
+                <input type="number" id="zb2" step="500" aria-label="Z3とZ4の境目">
+                <input type="number" id="zb3" step="500" aria-label="Z4とZ5の境目">
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <!-- analysis -->
+    <div class="col">
+      <section class="panel" aria-label="セッション">
+        <div class="view-head">
+          <div class="view-title">
+            <h2 id="viewTitle">セッション</h2>
+            <span class="tag" id="viewTag">サンプル</span>
+            <span class="date" id="viewDate"></span>
+          </div>
+          <div id="delWrap"></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="k">トータル時間</div><div class="v" id="sDur">0:00</div></div>
+          <div class="stat"><div class="k">回していた時間</div><div class="v" id="sAct">0:00</div></div>
+          <div class="stat"><div class="k">平均回転数</div><div class="v" id="sAvg">0<small>rpm</small></div></div>
+          <div class="stat"><div class="k">最高回転数</div><div class="v" id="sMax">0<small>rpm</small></div></div>
+          <div class="stat"><div class="k">負荷ポイント</div><div class="v" id="sLoad">0<small>pt</small></div></div>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-head"><h2>回転数の推移</h2><h3>背景の色はゾーン（Z1〜Z5）</h3></div>
+          <div class="chart" id="rpmWrap"><canvas id="rpmChart" aria-label="回転数の推移グラフ"></canvas><div class="tip" id="rpmTip" hidden></div></div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-head"><h2>音量</h2><h3>dBFS（0が最大）</h3></div>
+          <div class="chart" id="dbWrap"><canvas id="dbChart" aria-label="音量の推移グラフ"></canvas><div class="tip" id="dbTip" hidden></div></div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-head"><h2>ゾーン別の時間</h2><h3>回していた時間に対する割合</h3></div>
+          <div class="zbars" id="zbars"></div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-head"><h2>左右バランス</h2><h3>持ち替えの音（回転が途切れて「カチッ」）で自動判定</h3></div>
+          <div class="hands" id="hands"></div>
+          <div class="share" id="share" aria-hidden="true"></div>
+          <div class="hand-tools">
+            <span>最初の手</span>
+            <div class="seg" role="group" aria-label="最初の手"><button type="button" id="h0R">右</button><button type="button" id="h0L">左</button></div>
+            <span>持ち替え</span>
+            <div class="marks" id="marks"></div>
+            <button class="btn small" type="button" id="addMark" hidden></button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel history" aria-label="履歴">
+    <div class="view-head"><h2>トレーニング履歴</h2><h3>行をクリックするとグラフに表示</h3></div>
+    <div class="hist-grid">
+      <div>
+        <div class="chart-head"><h3>セッションごとの負荷ポイント（直近20回）</h3></div>
+        <div class="chart" id="histWrap"><canvas id="histChart" aria-label="負荷ポイントの棒グラフ"></canvas><div class="tip" id="histTip" hidden></div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>日時</th><th class="n">時間</th><th class="n">平均</th><th class="n">最高</th><th class="n">負荷</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+        <div class="empty" id="histEmpty" hidden>まだ記録がありません。「計測スタート」か録音ファイルの解析で最初の記録を作りましょう。</div>
+      </div>
+    </div>
+    <div class="how">
+      <div><h3>しくみ</h3><p>リストボールのローターは1回転ごとに同じ音を出すので、音の高さ（Hz）は回転数に比例します。Hz×60 が毎分の回転数（RPM）です。</p></div>
+      <div><h3>負荷ポイント</h3><p>ジャイロの抵抗は回転数の2乗に比例して強くなります。そこで（回転数÷10,000）²×分×10 を足し合わせました。10,000rpmで1分回すと10pt。</p></div>
+      <div><h3>上手に測るコツ</h3><p>スマホやPCのマイクをボールから30〜50cmに置き、静かな場所で。数値がおかしい時は「校正と感度」で換算や感度を調整してください。</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const POINT_DT = 0.5;          // seconds per stored point
+const SCORE_MIN = 4.5;         // dB: how clearly the harmonic comb stands out (noise stays below ~4)
+const BURST_MIN = 8;           // dB: a click this much louder than the last 2 s
+const ZNAME = ["ウォームアップ","エンデュランス","テンポ","パワー","マックス"];
+const LS_KEY = "spinmeter.v1";
+
+/* ---------- storage ---------- */
+let settings = {rpmPerHz:60, gateDb:-60, zones:[3000,5000,7000,9000]};
+let sessions = [];
+try {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) { const o = JSON.parse(raw); if (o.settings) settings = Object.assign(settings, o.settings); if (Array.isArray(o.sessions)) sessions = o.sessions; }
+} catch (e) {}
+function migrate(){
+  let changed=false;
+  for (const s of sessions) if (s.v!==3){ cleanSession(s.pts); if (s.v!==2) s.marks = autoSwitches(s.pts); s.v=3; changed=true; }
+  if (changed) persist();
+}
+function persist(){ try { localStorage.setItem(LS_KEY, JSON.stringify({settings, sessions})); } catch (e) {} }
+
+/* ---------- helpers ---------- */
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const median = a => { if (!a.length) return 0; const s = a.slice().sort((x,y)=>x-y), m = s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
+const fmtT = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}` : `${m}:${String(x).padStart(2,"0")}`; };
+const fmtN = n => Math.round(n).toLocaleString("ja-JP");
+const fmtDate = ms => { const d = new Date(ms); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
+const rpmOf = hz => hz > 0 ? hz * settings.rpmPerHz : 0;
+const zoneOf = r => { if (r <= 0) return -1; const z = settings.zones; let i = 0; while (i < 4 && r >= z[i]) i++; return i; };
+const zoneColor = i => tok("--z" + (i+1));
+const zoneRange = i => { const z = settings.zones; return i===0 ? `〜${fmtN(z[0])}` : i===4 ? `${fmtN(z[3])}〜` : `${fmtN(z[i-1])}〜${fmtN(z[i])}`; };
+
+/* ---------- FFT + pitch detector ----------
+   A spinning wrist ball makes a buzz whose harmonics sit at k × f0 (a comb).
+   For every candidate f0 we measure how much louder the spectrum is ON the comb
+   teeth than BETWEEN them (at k−1/2, k−1/3, k−2/3). Octave errors (2×, 3×, ½×)
+   all put a "between" point on a real harmonic, so the true spacing wins. */
+class Detector {
+  constructor(N, sr){
+    this.N = N; this.sr = sr; this.binHz = sr / N;
+    this.win = new Float32Array(N); for (let i=0;i<N;i++) this.win[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(N-1));
+    this.re = new Float64Array(N); this.im = new Float64Array(N); this.db = new Float32Array(N/2);
+    this.rev = new Uint32Array(N); const bits = Math.log2(N);
+    for (let i=0;i<N;i++){ let r=0,x=i; for (let b=0;b<bits;b++){ r=(r<<1)|(x&1); x>>=1; } this.rev[i]=r; }
+    this.cos = new Float64Array(N/2); this.sin = new Float64Array(N/2);
+    for (let i=0;i<N/2;i++){ this.cos[i]=Math.cos(2*Math.PI*i/N); this.sin[i]=-Math.sin(2*Math.PI*i/N); }
+    this.lo = Math.max(2, Math.ceil(30/this.binHz)); this.hi = Math.min(N/2-2, Math.floor(3000/this.binHz));
+    this.grid = []; for (let f=35; f<=320; f*=1.004) this.grid.push(f);
+    this.blk = Math.max(64, Math.round(sr*0.025)); this.eh = [];
+  }
+  fft(){
+    const {N,re,im,cos,sin} = this;
+    for (let size=2; size<=N; size<<=1){
+      const half=size>>1, step=N/size;
+      for (let i=0;i<N;i+=size) for (let j=0,k=0;j<half;j++,k+=step){
+        const a=i+j, b=a+half, tr=re[b]*cos[k]-im[b]*sin[k], ti=re[b]*sin[k]+im[b]*cos[k];
+        re[b]=re[a]-tr; im[b]=im[a]-ti; re[a]+=tr; im[a]+=ti;
+      }
+    }
+  }
+  dbAt(f, rel){ // max dB within ±rel of f
+    const c = f/this.binHz, w = Math.max(1, Math.round(c*rel)), i0 = Math.round(c);
+    let m = -200; for (let i=Math.max(1,i0-w); i<=Math.min(this.N/2-2,i0+w); i++) if (this.db[i]>m) m=this.db[i];
+    return m;
+  }
+  peakFreq(f){ // interpolated local maximum near f
+    const c = f/this.binHz, w = Math.max(1, Math.round(c*0.012)), i0 = Math.round(c);
+    let bi = i0, m = -200;
+    for (let i=Math.max(2,i0-w); i<=Math.min(this.N/2-3,i0+w); i++) if (this.db[i]>m){ m=this.db[i]; bi=i; }
+    const a=this.db[bi-1], b=this.db[bi], g=this.db[bi+1], d=a-2*b+g;
+    return (bi + (d ? 0.5*(a-g)/d : 0)) * this.binHz;
+  }
+  comb(f0){
+    let s=0, n=0;
+    for (let k=1; k*f0<1500; k++){
+      if (k*f0 < 60) continue;
+      const off = Math.max(this.dbAt((k-.5)*f0,.006), this.dbAt((k-1/3)*f0,.006), this.dbAt((k-2/3)*f0,.006));
+      s += this.dbAt(k*f0,.012) - off; n++;
+    }
+    return n>=4 ? s/n : -99;
+  }
+  process(x, hop){
+    const {N,re,im,win,rev,db,lo,hi} = this;
+    let ss=0; for (let i=0;i<N;i++) ss+=x[i]*x[i];
+    const rmsDb = 10*Math.log10(ss/N + 1e-12);
+    // clicks: loudest 25 ms block in the newest hop vs. the median of the last ~2 s
+    let maxE = -200; const start = Math.max(0, N-(hop||N));
+    for (let b=start; b+this.blk<=N; b+=this.blk){ let e=0; for (let i=b;i<b+this.blk;i++) e+=x[i]*x[i]; e=10*Math.log10(e/this.blk+1e-12); this.eh.push(e); if (e>maxE) maxE=e; }
+    const base = this.eh.length>=20 ? median(this.eh.slice(0,-Math.ceil((N-start)/this.blk))) : maxE;
+    if (this.eh.length>80) this.eh.splice(0, this.eh.length-80);
+    const burst = Math.max(0, maxE-base);
+    for (let i=0;i<N;i++){ const r=rev[i]; re[r]=x[i]*win[i]; im[r]=0; }
+    this.fft();
+    const norm = N/4;
+    for (let i=0;i<N/2;i++) db[i] = 20*Math.log10(Math.hypot(re[i],im[i])/norm + 1e-10);
+    this.floor = median(Array.from(db.subarray(lo,hi)));
+    const sc = this.grid.map(f=>this.comb(f));
+    let best=-99; for (const v of sc) if (v>best) best=v;
+    let f0 = 0;
+    for (let i=0;i<sc.length;i++) if (sc[i] >= 0.9*best){ f0 = this.grid[i]; break; }   // lowest near-best = true spacing
+    if (!(best > 0)) return {hz:0, db:rmsDb, score:best, burst, harm:[]};
+    // refine with the harmonics, weighted by their strength
+    let ws=0, fs=0;
+    for (let k=1; k<=8 && k*f0<1500; k++){ const pf=this.peakFreq(k*f0)/k, w=Math.max(0, this.dbAt(k*f0,.012)-this.floor); if (Math.abs(pf/f0-1)<0.02){ ws+=w; fs+=w*pf; } }
+    const hz = ws ? fs/ws : f0;
+    const harm=[]; for (let k=1;k<=12;k++) if (hz*k<1600) harm.push(hz*k);
+    return {hz, db:rmsDb, score:best, burst, harm};
+  }
+}
+const pickN = sr => { let n = 1<<Math.round(Math.log2(sr*0.34)); return Math.min(32768, Math.max(4096, n)); };
+
+/* smoothing + point accumulation, shared by mic and file analysis.
+   point = [t, hz (0 = not spinning), dB, loudest click dB] */
+class Pipeline {
+  constructor(gate){ this.gate=gate; this.win=[]; this.off=0; this.acc=[]; this.pts=[]; this.nextT=POINT_DT; this.cur={hz:0,db:-100,on:false}; }
+  feed(r, t){
+    const on = r.hz>0 && r.db>this.gate && r.score>=SCORE_MIN;
+    let hz = 0;
+    if (on){ this.off=0; this.win.push(r.hz); if (this.win.length>5) this.win.shift(); hz = median(this.win); }
+    else { this.off++; if (this.off<3 && this.win.length) hz = median(this.win); else this.win=[]; }
+    this.cur = {hz, db:r.db, on: hz>0};
+    this.acc.push([hz, r.db, r.burst||0]);
+    let added = false;
+    while (t >= this.nextT){
+      const act = this.acc.filter(a=>a[0]>0);
+      const ph = this.acc.length && act.length >= this.acc.length/2 ? median(act.map(a=>a[0])) : 0;
+      const pd = this.acc.length ? this.acc.reduce((s,a)=>s+a[1],0)/this.acc.length : -100;
+      const pb = this.acc.reduce((m,a)=>Math.max(m,a[2]),0);
+      this.pts.push([+(this.nextT-POINT_DT).toFixed(1), +ph.toFixed(2), +pd.toFixed(1), +pb.toFixed(1)]);
+      this.acc = []; this.nextT += POINT_DT; added = true;
+    }
+    return added;
+  }
+}
+
+/* remove isolated blips and sudden jumps (e.g. the ball winding down, a clack read as a tone) */
+function despike(pts){
+  // the rotor cannot jump up 25% within a few seconds: such points are clacks, not spin
+  const a = pts.map(p=>p[1]), W = Math.round(4/POINT_DT);
+  for (let i=0;i<a.length;i++){
+    if (!(a[i]>0)) continue;
+    const nb=[]; for (let j=Math.max(0,i-W); j<=Math.min(a.length-1,i+W); j++) if (j!==i && a[j]>0) nb.push(a[j]);
+    if (nb.length<2 || a[i] > median(nb)*1.25) pts[i][1]=0;
+  }
+  return pts;
+}
+function dropShortRuns(pts, minSec){
+  // stretches of "spinning" shorter than minSec (one-point dropouts bridged) are noise
+  let i=0;
+  while (i<pts.length){
+    if (!(pts[i][1]>0)){ i++; continue; }
+    let j=i, act=0;
+    while (j<pts.length){
+      if (pts[j][1]>0){ act+=POINT_DT; j++; }
+      else if (j+1<pts.length && pts[j+1][1]>0) j++;   // bridge a single dropped point
+      else break;
+    }
+    if (act<minSec) for (let k=i;k<j;k++) pts[k][1]=0;
+    i=j;
+  }
+  return pts;
+}
+
+/* Switching hands makes a clack that can read as a very high tone for a moment.
+   Around every break in the tone and every clack, drop points that are >20% above
+   the steady level just before AND just after. */
+function cleanTransitions(pts){
+  const n=pts.length, act=i=>pts[i][1]>0, W=Math.round(3/POINT_DT), R=Math.round(8/POINT_DT);
+  const ref=(a,b)=>{ const v=[]; for (let k=Math.max(0,a); k<Math.min(n,b); k++) if (act(k)) v.push(pts[k][1]); return v.length>=4 ? median(v) : 0; };
+  const centers=[];
+  for (let i=0;i<n;i++){ if ((pts[i][3]||0)>=BURST_MIN || (i>0 && act(i)!==act(i-1))) centers.push(i); }
+  const kill=new Set();
+  for (const c of centers){
+    const lvl = Math.max(ref(c-W-R, c-W), ref(c+W, c+W+R)); if (!lvl) continue;
+    for (let k=Math.max(0,c-W); k<Math.min(n,c+W); k++) if (act(k) && pts[k][1]>lvl*1.2) kill.add(k);
+  }
+  kill.forEach(k=>{ pts[k][1]=0; });
+  return pts;
+}
+const cleanSession = pts => dropShortRuns(despike(cleanTransitions(pts)), 3);
+
+/* ---------- hand switches ----------
+   A switch = the tone breaks off briefly (≤ 6 s) AND a click is heard, after at least 8 s of spinning
+   since the previous switch (so a regrip right after switching is not counted twice). */
+function autoSwitches(pts){
+  const out=[]; let since=0, i=0;
+  while (i<pts.length){
+    if (pts[i][1]>0){ since+=POINT_DT; i++; continue; }
+    let j=i; while (j<pts.length && !(pts[j][1]>0)) j++;
+    let after=0; for (let k=j; k<Math.min(pts.length, j+Math.round(6/POINT_DT)); k++) if (pts[k][1]>0) after+=POINT_DT;
+    if (j<pts.length && (j-i)*POINT_DT<=6 && since>=8 && after>=3){
+      let b=0, bt=pts[i][0];
+      for (let k=Math.max(0,i-1); k<=Math.min(pts.length-1,j); k++){ const v=pts[k][3]||0; if (v>b){ b=v; bt=pts[k][0]; } }
+      if (b>=BURST_MIN){ out.push(+bt.toFixed(1)); since=0; }
+    }
+    i=j;
+  }
+  return out;
+}
+function marksOf(s){
+  if (!s) return [];
+  if (s.marks) return s.marks;
+  const auto = autoSwitches(s.pts), man = s.manual||[];   // live session: auto + taps
+  return auto.filter(t=>!man.some(m=>Math.abs(m-t)<4)).concat(man).sort((a,b)=>a-b);
+}
+const handAt = (s, t, marks) => { let n=0; for (const m of marks) if (m<=t) n++; const h0 = s.hand0||"R"; return n%2 ? (h0==="R"?"L":"R") : h0; };
+const HNAME = {R:"右手", L:"左手"};
+
+/* ---------- summaries ---------- */
+function summarize(pts){
+  const zs=[0,0,0,0,0]; let act=0, sum=0, max=0, load=0;
+  for (const p of pts){ const r = rpmOf(p[1]); if (r>0){ act+=POINT_DT; sum+=r; if (r>max) max=r; load += (r/10000)**2 * POINT_DT/6; zs[zoneOf(r)]+=POINT_DT; } }
+  const dur = pts.length ? pts[pts.length-1][0] + POINT_DT : 0;
+  return {dur, act, avg: act ? sum/(act/POINT_DT) : 0, max, load, zs};
+}
+function handStats(s){
+  const marks = marksOf(s), o = {R:{act:0,sum:0,load:0,max:0}, L:{act:0,sum:0,load:0,max:0}};
+  for (const p of s.pts){ const r=rpmOf(p[1]); if (r>0){ const h=o[handAt(s,p[0]+POINT_DT/2,marks)]; h.act+=POINT_DT; h.sum+=r; h.load+=(r/10000)**2*POINT_DT/6; if (r>h.max) h.max=r; } }
+  for (const k of ["R","L"]) o[k].avg = o[k].act ? o[k].sum/(o[k].act/POINT_DT) : 0;
+  return o;
+}
+
+/* ---------- sample session (shown until there is a real one) ---------- */
+function makeSample(){
+  const pts=[]; let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+  const plan=[[0,20,0,0],[20,60,0,4500],[60,90,4500,5200],[90,110,0,0],[110,130,0,9000],[130,160,9000,9800],[160,180,0,0],[180,200,0,11500],[200,225,11500,12600],[225,245,0,0],[245,260,0,7000],[260,320,7000,6400]];
+  for (let t=0;t<320;t+=POINT_DT){
+    const seg = plan.find(s=>t>=s[0]&&t<s[1]) || plan[plan.length-1];
+    let r = seg[2]===0&&seg[3]===0 ? 0 : seg[2] + (seg[3]-seg[2])*(t-seg[0])/(seg[1]-seg[0]);
+    if (seg[2]===0 && seg[3]>0) r = seg[3]*Math.min(1,(t-seg[0])/(seg[1]-seg[0])*1.6);
+    if (r>0 && r<1500) r=0;
+    r = r ? r*(1+(rnd()-0.5)*0.05) : 0;
+    const d = r ? -46 + 14*(r/12000) + (rnd()-0.5)*3 : -68 + rnd()*4;
+    pts.push([t, +(r/60).toFixed(2), +d.toFixed(1), 0]);
+  }
+  return {id:"sample", start: Date.now(), src:"sample", pts, hand0:"R", marks:[170]};
+}
+const SAMPLE = makeSample();
+
+/* ---------- state ---------- */
+let viewId = sessions.length ? sessions[0].id : "sample";
+let live = null;          // {ctx, stream, analyser, det, pipe, buf, t0, timer, sess}
+let lastSpec = null;
+let liveCache = null;
+function liveView(){
+  const s = live && live.sess; if (!s) return null;
+  if (!liveCache || liveCache.n !== s.pts.length || liveCache.m !== s.manual.length || liveCache.h !== s.hand0)
+    liveCache = {n:s.pts.length, m:s.manual.length, h:s.hand0, v:Object.assign({}, s, {pts: cleanSession(s.pts.map(p=>p.slice()))})};
+  return liveCache.v;
+}
+const getSess = id => id==="live" ? liveView() : id==="sample" ? SAMPLE : sessions.find(s=>s.id===id);
+
+/* ---------- canvas utils ---------- */
+function setupCanvas(cv, cssH){
+  const w = cv.parentElement.clientWidth || 300, dpr = window.devicePixelRatio || 1;
+  cv.style.height = cssH + "px";
+  if (cv.width !== Math.round(w*dpr) || cv.height !== Math.round(cssH*dpr)){ cv.width = Math.round(w*dpr); cv.height = Math.round(cssH*dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,cssH);
+  return {g, w, h: cssH};
+}
+function niceStep(range, target){
+  const raw = range/target, p = 10**Math.floor(Math.log10(raw)), n = raw/p;
+  return (n<1.5?1:n<3?2:n<7?5:10)*p;
+}
+const timeStep = d => [5,10,15,30,60,120,300,600,900,1800,3600].find(s=>d/s<=6) || 7200;
+const font = (px, w=500) => `${w} ${px}px ${tok("--f-display") || "sans-serif"}`;
+
+/* ---------- gauge ---------- */
+let gaugeShown = 0, gaugeTarget = 0;
+function gaugeMax(){ return Math.max(6000, Math.ceil(settings.zones[3]*1.25/1000)*1000); }
+function drawGauge(){
+  const cv = $("gauge"), box = cv.parentElement, w = box.clientWidth, h = box.clientHeight, dpr = window.devicePixelRatio||1;
+  if (cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const cx=w/2, cy=h*0.53, R=Math.min(w/2, h*0.56)-14, a0=Math.PI*0.75, sweep=Math.PI*1.5, gm=gaugeMax();
+  const ang = r => a0 + sweep*Math.min(1, Math.max(0, r/gm));
+  const bounds = [0, ...settings.zones, gm];
+  g.lineCap = "butt";
+  for (let i=0;i<5;i++){
+    const s = ang(bounds[i]) + (i?0.012:0), e = ang(bounds[i+1]) - (i<4?0.012:0);
+    if (e<=s) continue;
+    g.beginPath(); g.arc(cx,cy,R,s,e); g.strokeStyle = zoneColor(i); g.lineWidth = 12; g.stroke();
+  }
+  // ticks
+  g.strokeStyle = tok("--muted"); g.fillStyle = tok("--muted"); g.textAlign="center"; g.textBaseline="middle"; g.font = font(11,600);
+  const lblStep = gm>12000 ? 3000 : 2000;
+  for (let v=0; v<=gm; v+=1000){
+    const a=ang(v), major = v%lblStep===0, r1=R-11, r2=R-(major?20:15);
+    g.beginPath(); g.moveTo(cx+Math.cos(a)*r1, cy+Math.sin(a)*r1); g.lineTo(cx+Math.cos(a)*r2, cy+Math.sin(a)*r2); g.lineWidth = major?1.5:1; g.stroke();
+    if (major && v) g.fillText(v/1000 + "k", cx+Math.cos(a)*(R-32), cy+Math.sin(a)*(R-32));
+  }
+  // live arc + needle
+  const a = ang(gaugeShown);
+  if (gaugeShown>0){ g.beginPath(); g.arc(cx,cy,R+11,a0,a); g.strokeStyle=tok("--accent"); g.lineWidth=3; g.lineCap="round"; g.stroke(); }
+  g.beginPath(); g.moveTo(cx+Math.cos(a)*(R-40), cy+Math.sin(a)*(R-40)); g.lineTo(cx+Math.cos(a)*(R+6), cy+Math.sin(a)*(R+6));
+  g.strokeStyle=tok("--ink"); g.lineWidth=3; g.lineCap="round"; g.stroke();
+}
+function gaugeLoop(){
+  const d = gaugeTarget - gaugeShown;
+  if (Math.abs(d) > 5){ gaugeShown += d*0.18; drawGauge(); $("rpmNow").textContent = fmtN(Math.round(gaugeShown/10)*10); }
+  else if (gaugeShown !== gaugeTarget){ gaugeShown = gaugeTarget; drawGauge(); $("rpmNow").textContent = fmtN(Math.round(gaugeShown/10)*10); }
+  requestAnimationFrame(gaugeLoop);
+}
+function setZoneChip(r, idle){
+  const chip = $("zoneChip"), z = zoneOf(r);
+  chip.querySelector("i").style.background = z>=0 ? zoneColor(z) : tok("--line");
+  chip.querySelector("span").textContent = idle ? "待機中" : z>=0 ? `Z${z+1} ${ZNAME[z]}` : "停止中";
+}
+
+/* ---------- spectrum strip ---------- */
+function drawSpec(){
+  const cv=$("spec"), {g,w,h} = setupCanvas(cv, 64);
+  const fLo=30, fHi=1600, x = f => Math.log(f/fLo)/Math.log(fHi/fLo)*w;
+  g.fillStyle=tok("--muted"); g.font=font(10,500); g.textBaseline="top";
+  for (const f of [50,100,200,500,1000]){ g.fillText(f+"Hz", x(f)+3, 3); g.fillStyle=tok("--line"); g.fillRect(x(f),0,1,h); g.fillStyle=tok("--muted"); }
+  if (!lastSpec) return;
+  const {db, binHz, floor, harm, on} = lastSpec;
+  g.beginPath();
+  for (let px=0; px<=w; px+=1){
+    const f = fLo*Math.pow(fHi/fLo, px/w), i = Math.round(f/binHz);
+    const v = Math.max(0, Math.min(1, (db[i]-floor+5)/50));
+    const y = h - v*(h-14);
+    px ? g.lineTo(px,y) : g.moveTo(px,y);
+  }
+  g.lineTo(w,h); g.lineTo(0,h); g.closePath(); g.fillStyle=tok("--muted"); g.globalAlpha=.35; g.fill(); g.globalAlpha=1;
+  if (on) harm.forEach((f,k)=>{ g.fillStyle=tok("--accent"); g.fillRect(x(f)-(k?0.5:1), 12, k?1:2, h-12); });
+}
+
+/* ---------- charts ---------- */
+function drawRpmChart(hoverX){
+  const s = getSess(viewId), pts = s ? s.pts : [];
+  const cv=$("rpmChart"), H = window.innerWidth<560 ? 190 : 230, {g,w,h} = setupCanvas(cv, H);
+  const L=40, R=34, T=8, B=42, pw=w-L-R, ph=h-T-B;
+  let maxR=0; for (const p of pts){ const r=rpmOf(p[1]); if (r>maxR) maxR=r; }
+  const ymax = Math.max(gaugeMax(), Math.ceil(maxR*1.08/1000)*1000);
+  const dur = Math.max(60, pts.length ? pts[pts.length-1][0]+POINT_DT : 0);
+  const X = t => L + t/dur*pw, Y = r => T + ph - r/ymax*ph;
+  const bounds=[0,...settings.zones,ymax];
+  for (let i=0;i<5;i++){ const y1=Y(Math.min(bounds[i+1],ymax)), y0=Y(bounds[i]); if (y0<=y1) continue;
+    g.fillStyle=zoneColor(i); g.globalAlpha=.22; g.fillRect(L,y1,pw,y0-y1); g.globalAlpha=1;
+    if (y0-y1>=13){ g.fillStyle=tok("--muted"); g.font=font(10,600); g.textAlign="left"; g.textBaseline="middle"; g.fillText("Z"+(i+1), L+pw+6, (y0+y1)/2); } }
+  // grid + labels
+  g.font=font(11,500); g.fillStyle=tok("--muted"); g.strokeStyle=tok("--line"); g.lineWidth=1;
+  const ys = niceStep(ymax,4);
+  g.textAlign="right"; g.textBaseline="middle";
+  for (let v=0; v<=ymax+1; v+=ys){ const y=Math.round(Y(v))+.5; g.beginPath(); g.moveTo(L,y); g.lineTo(L+pw,y); g.globalAlpha=.6; g.stroke(); g.globalAlpha=1; g.fillText(v?(v/1000)+"k":"0", L-6, y); }
+  const ts = timeStep(dur); g.textAlign="center"; g.textBaseline="top";
+  for (let t=0; t<=dur; t+=ts) g.fillText(fmtT(t), Math.min(L+pw-14, Math.max(L+12, X(t))), T+ph+6);
+  // line
+  g.strokeStyle=tok("--accent"); g.lineWidth=2; g.lineJoin="round"; g.lineCap="round";
+  g.beginPath(); let pen=false;
+  for (const p of pts){ const r=rpmOf(p[1]); if (r>0){ const x=X(p[0]+POINT_DT/2), y=Y(r); pen ? g.lineTo(x,y) : g.moveTo(x,y); pen=true; } else pen=false; }
+  g.stroke();
+  // hand strip + switch marks
+  const marks = marksOf(s), sy = T+ph+24, edges = [0, ...marks.filter(m=>m<dur), dur];
+  for (let k=0;k<edges.length-1;k++){
+    const x0=X(edges[k]), x1=X(edges[k+1]), hnd = handAt(s, (edges[k]+edges[k+1])/2, marks);
+    g.fillStyle = hnd==="R" ? tok("--surface-2") : tok("--line"); g.fillRect(x0, sy, Math.max(0,x1-x0-(k<edges.length-2?2:0)), 16);
+    if (x1-x0>34){ g.fillStyle=tok("--ink"); g.font=font(11,600); g.textAlign="left"; g.textBaseline="middle"; g.fillText(HNAME[hnd], x0+6, sy+8); }
+  }
+  g.strokeStyle=tok("--ink"); g.setLineDash([4,3]); g.lineWidth=1;
+  for (const m of marks){ if (m>dur) continue; const x=Math.round(X(m))+.5; g.beginPath(); g.moveTo(x,T); g.lineTo(x,sy+16); g.stroke(); }
+  g.setLineDash([]);
+  if (pinT!=null && pinT<=dur){ const x=Math.round(X(pinT))+.5; g.strokeStyle=tok("--accent"); g.lineWidth=2; g.beginPath(); g.moveTo(x,T); g.lineTo(x,sy+16); g.stroke(); }
+  rpmGeom = {L, pw, dur};
+  // hover
+  const tip=$("rpmTip");
+  if (hoverX==null || !pts.length || hoverX<L || hoverX>L+pw){ tip.hidden=true; return; }
+  const t = (hoverX-L)/pw*dur, i = Math.min(pts.length-1, Math.max(0, Math.round(t/POINT_DT))), p = pts[i], r = rpmOf(p[1]), x = X(p[0]+POINT_DT/2);
+  g.strokeStyle=tok("--ink"); g.globalAlpha=.5; g.lineWidth=1; g.beginPath(); g.moveTo(Math.round(x)+.5,T); g.lineTo(Math.round(x)+.5,T+ph); g.stroke(); g.globalAlpha=1;
+  if (r>0){ g.beginPath(); g.arc(x,Y(r),5,0,Math.PI*2); g.fillStyle=tok("--accent"); g.fill(); g.lineWidth=2; g.strokeStyle=tok("--surface"); g.stroke(); }
+  const z = zoneOf(r);
+  tip.innerHTML = `${fmtT(p[0])} ・ ${HNAME[handAt(s,p[0],marks)]}<br><b>${r>0?fmtN(r)+" rpm":"停止"}</b>${z>=0?`<br>Z${z+1} ${ZNAME[z]}`:""}`;
+  tip.hidden=false; tip.style.left = Math.min(w-70, Math.max(70, x)) + "px"; tip.style.top = (r>0?Math.max(54,Y(r)-10):T+50) + "px";
+}
+function drawDbChart(hoverX){
+  const s = getSess(viewId), pts = s ? s.pts : [];
+  const cv=$("dbChart"), {g,w,h} = setupCanvas(cv, 92);
+  const L=40, R=34, T=6, B=18, pw=w-L-R, ph=h-T-B, lo=-90, hi=0;
+  const dur = Math.max(60, pts.length ? pts[pts.length-1][0]+POINT_DT : 0);
+  const X = t => L + t/dur*pw, Y = d => T + ph - (Math.max(lo,Math.min(hi,d))-lo)/(hi-lo)*ph;
+  g.font=font(11,500); g.fillStyle=tok("--muted"); g.strokeStyle=tok("--line"); g.textAlign="right"; g.textBaseline="middle";
+  for (const v of [-90,-60,-30,0]){ const y=Math.round(Y(v))+.5; g.beginPath(); g.moveTo(L,y); g.lineTo(L+pw,y); g.globalAlpha=.6; g.stroke(); g.globalAlpha=1; g.fillText(v, L-6, y); }
+  // gate line
+  const gy = Math.round(Y(settings.gateDb))+.5; g.setLineDash([3,3]); g.strokeStyle=tok("--muted"); g.beginPath(); g.moveTo(L,gy); g.lineTo(L+pw,gy); g.stroke(); g.setLineDash([]);
+  if (pts.length){
+    g.beginPath(); g.moveTo(X(0), Y(lo));
+    for (const p of pts) g.lineTo(X(p[0]+POINT_DT/2), Y(p[2]));
+    g.lineTo(X(pts[pts.length-1][0]+POINT_DT/2), Y(lo)); g.closePath();
+    g.fillStyle=tok("--accent"); g.globalAlpha=.16; g.fill(); g.globalAlpha=1;
+    g.beginPath(); pts.forEach((p,i)=>{ const x=X(p[0]+POINT_DT/2), y=Y(p[2]); i?g.lineTo(x,y):g.moveTo(x,y); });
+    g.strokeStyle=tok("--accent"); g.lineWidth=1.5; g.stroke();
+  }
+  const tip=$("dbTip");
+  if (hoverX==null || !pts.length || hoverX<L || hoverX>L+pw){ tip.hidden=true; return; }
+  const t=(hoverX-L)/pw*dur, i=Math.min(pts.length-1,Math.max(0,Math.round(t/POINT_DT))), p=pts[i], x=X(p[0]+POINT_DT/2);
+  g.strokeStyle=tok("--ink"); g.globalAlpha=.5; g.beginPath(); g.moveTo(Math.round(x)+.5,T); g.lineTo(Math.round(x)+.5,T+ph); g.stroke(); g.globalAlpha=1;
+  tip.innerHTML = `${fmtT(p[0])}　<b>${p[2].toFixed(0)} dB</b>`; tip.hidden=false;
+  tip.style.left = Math.min(w-60, Math.max(60,x)) + "px"; tip.style.top = "2px"; tip.style.transform = "translate(-50%,-100%)";
+}
+let histBars = [];
+function drawHist(hoverX){
+  const cv=$("histChart"), {g,w,h} = setupCanvas(cv, 180);
+  const list = sessions.slice(0,20).reverse();
+  const L=36, R=8, T=10, B=22, pw=w-L-R, ph=h-T-B;
+  const loads = list.map(s=>summarize(s.pts).load), mx = Math.max(10, ...loads);
+  const step = niceStep(mx,4), ymax = Math.ceil(mx/step)*step, Y = v => T+ph-v/ymax*ph;
+  g.font=font(11,500); g.fillStyle=tok("--muted"); g.strokeStyle=tok("--line"); g.textAlign="right"; g.textBaseline="middle";
+  for (let v=0; v<=ymax+1e-9; v+=step){ const y=Math.round(Y(v))+.5; g.beginPath(); g.moveTo(L,y); g.lineTo(L+pw,y); g.globalAlpha=.6; g.stroke(); g.globalAlpha=1; g.fillText(+v.toFixed(1), L-6, y); }
+  histBars = [];
+  if (!list.length){ g.textAlign="center"; g.fillText("記録がたまるとここに並びます", L+pw/2, T+ph/2); $("histTip").hidden=true; return; }
+  const slot = pw/Math.max(list.length, 6), bw = Math.min(28, slot-4);
+  list.forEach((s,i)=>{
+    const x = L + slot*i + (slot-bw)/2, y = Y(loads[i]), bh = T+ph-y;
+    histBars.push({x0:L+slot*i, x1:L+slot*(i+1), s, load:loads[i], cx:x+bw/2, y});
+    g.fillStyle = tok("--accent"); g.globalAlpha = s.id===viewId ? 1 : .55;
+    const r = Math.min(4, bw/2, bh);
+    g.beginPath(); g.moveTo(x, T+ph); g.lineTo(x, y+r); g.quadraticCurveTo(x, y, x+r, y); g.lineTo(x+bw-r, y); g.quadraticCurveTo(x+bw, y, x+bw, y+r); g.lineTo(x+bw, T+ph); g.closePath(); g.fill();
+    g.globalAlpha=1;
+  });
+  g.fillStyle=tok("--muted"); g.textAlign="center"; g.textBaseline="top";
+  const every = Math.ceil(list.length/6);
+  histBars.forEach((b,i)=>{ if (i%every===0 || i===list.length-1){ const d=new Date(b.s.start); g.fillText(`${d.getMonth()+1}/${d.getDate()}`, b.cx, T+ph+6); } });
+  const tip=$("histTip"), hb = hoverX==null ? null : histBars.find(b=>hoverX>=b.x0 && hoverX<b.x1);
+  if (!hb){ tip.hidden=true; return; }
+  const sm = summarize(hb.s.pts);
+  tip.innerHTML = `${fmtDate(hb.s.start)}<br><b>${hb.load.toFixed(1)} pt</b><br>${fmtT(sm.act)} ・ 平均 ${fmtN(sm.avg)} rpm`;
+  tip.hidden=false; tip.style.left = Math.min(w-80, Math.max(80, hb.cx)) + "px"; tip.style.top = Math.max(60, hb.y-8) + "px";
+}
+
+/* ---------- DOM renders ---------- */
+function renderStats(){
+  const s = getSess(viewId); if (!s) return;
+  const m = summarize(s.pts);
+  $("sDur").textContent = fmtT(m.dur);
+  $("sAct").textContent = fmtT(m.act);
+  $("sAvg").innerHTML = `${fmtN(m.avg)}<small>rpm</small>`;
+  $("sMax").innerHTML = `${fmtN(m.max)}<small>rpm</small>`;
+  $("sLoad").innerHTML = `${m.load.toFixed(1)}<small>pt</small>`;
+  const zb = $("zbars"); zb.innerHTML = "";
+  for (let i=0;i<5;i++){
+    const pct = m.act ? m.zs[i]/m.act*100 : 0;
+    const row = document.createElement("div"); row.className="zbar";
+    row.innerHTML = `<div class="name"><i style="background:${zoneColor(i)}"></i><span>Z${i+1} ${ZNAME[i]}<br><small>${zoneRange(i)}</small></span></div>
+      <div class="track"><div style="width:${pct.toFixed(1)}%;background:${zoneColor(i)}"></div></div>
+      <div class="val">${fmtT(m.zs[i])} <small>${pct.toFixed(0)}%</small></div>`;
+    zb.appendChild(row);
+  }
+  renderHands(s);
+  const tag = $("viewTag"), title = $("viewTitle");
+  if (s.src==="sample"){ title.textContent="サンプルセッション"; tag.textContent="サンプル（架空のデータ）"; tag.className="tag"; $("viewDate").textContent=""; }
+  else if (viewId==="live"){ title.textContent="計測中"; tag.textContent="LIVE"; tag.className="tag live"; $("viewDate").textContent=fmtDate(s.start); }
+  else { title.textContent = s.src==="file" ? "録音から解析" : "マイク計測"; tag.textContent = s.name ? s.name : (s.src==="file"?"ファイル":"マイク"); tag.className="tag"; $("viewDate").textContent=fmtDate(s.start); }
+  renderDel();
+}
+let pinT = null, rpmGeom = null;
+function renderHands(s){
+  const hs = handStats(s), tot = hs.R.load + hs.L.load;
+  $("hands").innerHTML = ["R","L"].map(k=>{ const h=hs[k], pct = tot ? Math.round(h.load/tot*100) : 0;
+    return `<div class="hand"><div class="hn">${HNAME[k]}<span>${h.load.toFixed(1)}<small>pt</small></span></div>
+      <div class="hs">${fmtT(h.act)} ・ 平均 ${fmtN(h.avg)} rpm ・ 最高 ${fmtN(h.max)}</div><div class="hs">負荷の ${pct}%</div></div>`; }).join("");
+  const sh=$("share"); sh.innerHTML = tot ? `<div style="width:${hs.R.load/tot*100}%;background:var(--muted)"></div><div style="flex:1;background:var(--line)"></div>` : "";
+  const h0 = s.hand0||"R"; $("h0R").setAttribute("aria-pressed", h0==="R"); $("h0L").setAttribute("aria-pressed", h0==="L");
+  const marks = marksOf(s), editable = viewId!=="live";
+  const mk=$("marks"); mk.innerHTML = "";
+  if (!marks.length){ mk.innerHTML = `<span class="note">なし</span>`; }
+  marks.forEach(m=>{
+    const el=document.createElement("span"); el.className="mark"; el.textContent = fmtT(m);
+    if (editable){ const b=document.createElement("button"); b.type="button"; b.textContent="×"; b.setAttribute("aria-label", `${fmtT(m)} の持ち替えを取り消す`);
+      b.onclick=()=>{ s.marks = marks.filter(x=>x!==m); saveEdit(s); }; el.appendChild(b); }
+    else el.style.paddingRight="10px";
+    mk.appendChild(el);
+  });
+  const add=$("addMark");
+  if (editable && pinT!=null && !marks.some(m=>Math.abs(m-pinT)<1)){ add.hidden=false; add.textContent=`＋ ${fmtT(pinT)} に持ち替えを追加`; }
+  else if (editable && pinT==null){ add.hidden=false; add.textContent="グラフをタップして位置を選ぶと追加できます"; add.disabled=true; }
+  else add.hidden=true;
+  if (pinT!=null) add.disabled=false;
+}
+function saveEdit(s){ if (s.src!=="sample"){ const i=sessions.findIndex(x=>x.id===s.id); if (i>=0){ sessions[i]=s; persist(); } } renderStats(); renderCharts(); renderHistTable(); }
+$("h0R").onclick=()=>{ const s=viewId==="live" ? live && live.sess : getSess(viewId); if (s){ s.hand0="R"; viewId==="live" ? (renderStats(),renderCharts()) : saveEdit(s); } };
+$("h0L").onclick=()=>{ const s=viewId==="live" ? live && live.sess : getSess(viewId); if (s){ s.hand0="L"; viewId==="live" ? (renderStats(),renderCharts()) : saveEdit(s); } };
+$("addMark").onclick=()=>{ const s=getSess(viewId); if (!s || pinT==null) return; s.marks = marksOf(s).concat([+pinT.toFixed(1)]).sort((a,b)=>a-b); pinT=null; saveEdit(s); };
+$("rpmChart").addEventListener("click", e=>{
+  if (!rpmGeom || viewId==="live") return;
+  const r=$("rpmChart").getBoundingClientRect(), x=e.clientX-r.left;
+  if (x<rpmGeom.L || x>rpmGeom.L+rpmGeom.pw){ pinT=null; } else pinT = Math.round((x-rpmGeom.L)/rpmGeom.pw*rpmGeom.dur*2)/2;
+  renderStats(); renderCharts();
+});
+let delArmed = false;
+function renderDel(){
+  const w = $("delWrap"); w.innerHTML = "";
+  if (viewId==="live" || viewId==="sample") return;
+  if (!delArmed){ const b=document.createElement("button"); b.className="btn small"; b.type="button"; b.textContent="この記録を削除"; b.onclick=()=>{delArmed=true;renderDel();}; w.appendChild(b); }
+  else {
+    const d=document.createElement("div"); d.className="confirm"; d.innerHTML=`<span>削除しますか？</span>`;
+    const y=document.createElement("button"); y.className="btn small danger"; y.type="button"; y.textContent="削除する";
+    y.onclick=()=>{ sessions = sessions.filter(s=>s.id!==viewId); persist(); delArmed=false; viewId = sessions.length?sessions[0].id:"sample"; renderAll(); };
+    const n=document.createElement("button"); n.className="btn small"; n.type="button"; n.textContent="やめる"; n.onclick=()=>{delArmed=false;renderDel();};
+    d.append(y,n); w.appendChild(d);
+  }
+}
+function renderHistTable(){
+  const tb=$("histBody"); tb.innerHTML="";
+  $("histEmpty").hidden = sessions.length>0;
+  for (const s of sessions){
+    const m=summarize(s.pts), tr=document.createElement("tr");
+    if (s.id===viewId) tr.className="sel";
+    tr.tabIndex=0;
+    tr.innerHTML = `<td>${fmtDate(s.start)}${s.src==="file"?" ・録音":""}</td><td class="n">${fmtT(m.act)}</td><td class="n">${fmtN(m.avg)}</td><td class="n">${fmtN(m.max)}</td><td class="n">${m.load.toFixed(1)}</td>`;
+    const open=()=>{ if (live) return; viewId=s.id; delArmed=false; pinT=null; renderAll(); };
+    tr.onclick=open; tr.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();open();} };
+    tb.appendChild(tr);
+  }
+}
+let hover = {rpm:null, db:null, hist:null};
+function renderCharts(){ drawRpmChart(hover.rpm); drawDbChart(hover.db); drawHist(hover.hist); }
+function renderAll(){ renderStats(); renderHistTable(); renderCharts(); drawGauge(); drawSpec(); syncSettingsUI(); }
+
+for (const [cid,key] of [["rpmChart","rpm"],["dbChart","db"],["histChart","hist"]]){
+  const cv=$(cid);
+  cv.addEventListener("pointermove", e=>{ const r=cv.getBoundingClientRect(); hover[key]=e.clientX-r.left; renderCharts(); });
+  cv.addEventListener("pointerleave", ()=>{ hover[key]=null; renderCharts(); });
+}
+$("histChart").addEventListener("click", ()=>{ if (live || hover.hist==null) return; const b=histBars.find(b=>hover.hist>=b.x0&&hover.hist<b.x1); if (b){ viewId=b.s.id; delArmed=false; pinT=null; renderAll(); } });
+
+/* ---------- messages ---------- */
+function say(html, err){ const m=$("msg"); m.innerHTML=html; m.hidden=!html; m.classList.toggle("err", !!err); }
+
+/* ---------- live mic ---------- */
+async function startMic(){
+  say("");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ micFail(); return; }
+  // iPhone Safari: the audio engine must be created and resumed inside the tap itself
+  const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC();
+  const resumed = ctx.resume().catch(()=>{});
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}}); }
+  catch (e){ try { ctx.close(); } catch(_){} micFail(e); return; }
+  await resumed;
+  const src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(), N = pickN(ctx.sampleRate);
+  an.fftSize = N; an.smoothingTimeConstant = 0; src.connect(an);
+  const sess = {id: "s"+Date.now(), start: Date.now(), src:"mic", pts: [], hand0: (getSess(viewId)||{}).hand0 || "R", manual: []};
+  live = {ctx, stream, an, hop: Math.round(ctx.sampleRate*0.1), det: new Detector(N, ctx.sampleRate), pipe: new Pipeline(settings.gateDb), buf: new Float32Array(N), t0: performance.now(), sess, wake:null};
+  live.pipe.pts = sess.pts;
+  try { live.wake = await navigator.wakeLock.request("screen"); } catch(e){}
+  live.timer = setInterval(tick, 100);
+  viewId = "live"; delArmed=false; pinT=null; $("swBtn").hidden=false;
+  $("startBtn").textContent = "■ ストップして保存"; $("startBtn").classList.add("stop");
+  $("fileBtn").setAttribute("aria-disabled","true"); $("fileIn").disabled = true;
+  $("calBtn").disabled = false; $("autoGate").disabled = false;
+  renderAll();
+}
+function micFail(e){
+  const name = e && e.name;
+  const denied = name==="NotAllowedError" || name==="SecurityError";
+  say(denied
+    ? "<b>マイクを使えませんでした。</b>ブラウザでマイクを許可してください。claude.ai上の表示ではマイクが使えないため、ダウンロードしたHTMLファイルをChromeやSafariで開くか、ボイスメモなどで録音したファイルを「録音ファイルを解析」で読み込んでください。"
+    : "<b>マイクが見つかりませんでした。</b>マイクの接続を確認するか、録音ファイルの解析をお使いください。", true);
+}
+function tick(){
+  const L = live; if (!L) return;
+  if (L.ctx.state === "suspended" || L.ctx.state === "interrupted") L.ctx.resume().catch(()=>{});
+  L.an.getFloatTimeDomainData(L.buf);
+  const r = L.det.process(L.buf, L.hop);
+  L.pipe.gate = settings.gateDb;
+  const t = (performance.now()-L.t0)/1000;
+  const added = L.pipe.feed(r, t);
+  const cur = L.pipe.cur, rpm = rpmOf(cur.hz);
+  gaugeTarget = rpm; setZoneChip(rpm, false);
+  $("hzNow").textContent = cur.hz ? cur.hz.toFixed(1) : "—";
+  $("elNow").textContent = fmtT(t);
+  setLevel(r.db, cur.on);
+  lastSpec = {db: L.det.db, binHz: L.det.binHz, floor: L.det.floor, harm: r.harm, on: cur.on};
+  drawSpec();
+  L.lastRaw = r;
+  if (added){ renderStats(); renderCharts(); }
+}
+function setLevel(db, on){
+  const pct = v => Math.max(0, Math.min(100, (v+90)/90*100));
+  const f=$("lvFill"); f.style.width = pct(db)+"%"; f.classList.toggle("on", !!on);
+  $("lvGate").style.left = `calc(${pct(settings.gateDb)}% - 1px)`;
+  $("lvVal").textContent = db>-200 ? `${db.toFixed(0)} dB` : "— dB";
+}
+async function stopMic(){
+  const L = live; if (!L) return;
+  clearInterval(L.timer); live = null;
+  L.stream.getTracks().forEach(t=>t.stop());
+  try { await L.ctx.close(); } catch(e){}
+  try { L.wake && L.wake.release(); } catch(e){}
+  $("swBtn").hidden = true;
+  gaugeTarget = 0; setZoneChip(0, true); $("hzNow").textContent="—"; setLevel(-300,false);
+  $("startBtn").textContent = "● 計測スタート"; $("startBtn").classList.remove("stop");
+  $("fileBtn").removeAttribute("aria-disabled"); $("fileIn").disabled = false;
+  $("calBtn").disabled = true; $("autoGate").disabled = true;
+  const s = L.sess; cleanSession(s.pts); s.marks = marksOf(s); delete s.manual; s.v = 3;
+  const m = summarize(s.pts);
+  if (s.pts.length >= 6 && m.act > 0){ sessions.unshift(s); sessions = sessions.slice(0,200); persist(); viewId = s.id; say(`保存しました。回していた時間 ${fmtT(m.act)}、負荷 ${m.load.toFixed(1)} pt。`); }
+  else { viewId = sessions.length ? sessions[0].id : "sample"; say("回転音を検出できなかったので保存しませんでした。マイクを近づけるか、「校正と感度」で感度を上げてください。", true); }
+  lastSpec = null; renderAll();
+}
+$("startBtn").addEventListener("click", ()=>{ live ? stopMic() : startMic(); });
+$("swBtn").addEventListener("click", ()=>{ if (!live) return; const t=(performance.now()-live.t0)/1000; live.sess.manual.push(+t.toFixed(1)); renderStats(); renderCharts(); say(`${fmtT(t)} に持ち替えを記録しました。`); });
+
+/* ---------- file analysis ---------- */
+$("fileIn").addEventListener("change", async e=>{
+  const file = e.target.files && e.target.files[0]; e.target.value = "";
+  if (!file || live) return;
+  say(`「${file.name.replace(/[<>&]/g,"")}」を読み込み中…`);
+  const prog=$("prog"); prog.hidden=false; prog.firstElementChild.style.width="0%";
+  try {
+    const ab = await file.arrayBuffer();
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const ac = new OAC(1, 44100, 44100);
+    const audio = await new Promise((res,rej)=>{ const p = ac.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res,rej); });
+    const sr = audio.sampleRate, ch = audio.numberOfChannels, len = audio.length;
+    let data = audio.getChannelData(0);
+    if (ch>1){ const mix=new Float32Array(len); for (let c=0;c<ch;c++){ const d=audio.getChannelData(c); for (let i=0;i<len;i++) mix[i]+=d[i]/ch; } data=mix; }
+    const N = pickN(sr), det = new Detector(N, sr), hop = Math.round(sr*0.1), frames=[], buf=new Float32Array(N);
+    for (let start=0, n=0; start+N<=len; start+=hop, n++){
+      buf.set(data.subarray(start, start+N));
+      const r = det.process(buf, n ? hop : N); frames.push({r, t:(start+N)/sr});
+      if (n%20===0){ prog.firstElementChild.style.width = (start/len*100).toFixed(0)+"%"; await new Promise(r=>setTimeout(r,0)); }
+    }
+    if (!frames.length) throw new Error("short");
+    // adaptive gate: halfway-ish between quiet and loud parts, but never above the user's gate
+    const dbs = frames.map(f=>f.r.db).sort((a,b)=>a-b), p10=dbs[Math.floor(dbs.length*.1)], p90=dbs[Math.floor(dbs.length*.9)];
+    const gate = p90-p10 > 8 ? Math.min(settings.gateDb, p10 + 0.3*(p90-p10)) : Math.min(settings.gateDb, p10-1);
+    const pipe = new Pipeline(gate), t0 = frames[0].t;
+    for (const f of frames) pipe.feed(f.r, f.t - t0 + 0.1);
+    const s = {id:"f"+Date.now(), start: file.lastModified || Date.now(), src:"file", name: file.name.slice(0,40), pts: cleanSession(pipe.pts), hand0:"R", v:3};
+    s.marks = autoSwitches(s.pts);
+    const m = summarize(s.pts);
+    prog.hidden = true;
+    if (!m.act){ say("この録音からは回転音を検出できませんでした。ボールの近くで録音したファイルでお試しください。", true); return; }
+    sessions.unshift(s); sessions.sort((a,b)=>b.start-a.start); persist(); viewId = s.id; delArmed=false;
+    pinT = null;
+    say(`解析しました。${fmtT(m.dur)} の録音のうち ${fmtT(m.act)} 回転を検出${s.marks.length?`、持ち替え ${s.marks.length} 回（${s.marks.map(fmtT).join("・")}）`:""}。`);
+    renderAll();
+  } catch (err){
+    prog.hidden = true;
+    say("このファイルは読み込めませんでした。m4a・mp3・wav などの音声ファイルを選んでください。", true);
+  }
+});
+
+/* ---------- tuning UI ---------- */
+function syncSettingsUI(){
+  const sel=$("harm"), v=String(settings.rpmPerHz);
+  sel.value = ["60","30","20"].includes(v) ? v : "custom";
+  $("calInfo").textContent = `現在：音の高さ 1 Hz = ${settings.rpmPerHz.toFixed(1)} rpm`;
+  $("gate").value = settings.gateDb; $("gateVal").textContent = `：${settings.gateDb} dB`;
+  settings.zones.forEach((z,i)=>{ const el=$("zb"+i); if (document.activeElement!==el) el.value=z; });
+  $("lvGate").style.left = `calc(${Math.max(0,Math.min(100,(settings.gateDb+90)/90*100))}% - 1px)`;
+}
+function settingsChanged(){ persist(); renderAll(); }
+$("harm").addEventListener("change", e=>{ if (e.target.value!=="custom"){ settings.rpmPerHz=+e.target.value; settingsChanged(); } });
+$("calRpm").addEventListener("input", ()=>{});
+$("calBtn").addEventListener("click", ()=>{
+  const want = +$("calRpm").value, hz = live && live.pipe.cur.hz;
+  if (!(want>=500)){ say("カウンターに表示されている回転数を入力してから押してください。", true); return; }
+  if (!hz){ say("いま回転音を検出できていません。回しながら押してください。", true); return; }
+  settings.rpmPerHz = want/hz; settingsChanged(); say(`校正しました：${hz.toFixed(1)} Hz = ${fmtN(want)} rpm`);
+});
+$("gate").addEventListener("input", e=>{ settings.gateDb=+e.target.value; $("gateVal").textContent=`：${settings.gateDb} dB`; $("lvGate").style.left=`calc(${(settings.gateDb+90)/90*100}% - 1px)`; });
+$("gate").addEventListener("change", settingsChanged);
+$("autoGate").addEventListener("click", ()=>{
+  if (!live || !live.lastRaw) return;
+  settings.gateDb = Math.max(-90, Math.min(-20, Math.round(live.lastRaw.db + 8)));
+  settingsChanged(); say(`感度を ${settings.gateDb} dB に設定しました（今の環境音 +8 dB）。`);
+});
+for (let i=0;i<4;i++) $("zb"+i).addEventListener("change", ()=>{
+  const v=[0,1,2,3].map(k=>Math.max(500, Math.round(+$("zb"+k).value || settings.zones[k])));
+  for (let k=1;k<4;k++) if (v[k]<=v[k-1]) v[k]=v[k-1]+500;
+  settings.zones=v; settingsChanged();
+});
+
+/* ---------- boot ---------- */
+const redraw = () => { drawGauge(); drawSpec(); renderCharts(); renderStats(); };
+window.addEventListener("resize", redraw);
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw); } catch(e){}
+new MutationObserver(redraw).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+setZoneChip(0, true); setLevel(-300,false);
+try { migrate(); } catch(e){}
+renderAll();
+requestAnimationFrame(gaugeLoop);
+window.__spin = {Detector, Pipeline, summarize, cleanSession, autoSwitches, settings: () => settings, sessions: () => sessions};
+})();
+</script>
