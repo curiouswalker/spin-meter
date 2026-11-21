@@ -276,7 +276,7 @@ tbody tr.sel{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
           <div class="zbars" id="zbars"></div>
         </div>
         <div class="chart-block">
-          <div class="chart-head"><h2>左右バランス</h2><h3>持ち替えの音（回転が途切れて「カチッ」）で自動判定</h3></div>
+          <div class="chart-head"><h2>左右バランス</h2><h3>音が1秒以上乱れ、その後回転が遅く・小さくなったら持ち替えと判定</h3></div>
           <div class="hands" id="hands"></div>
           <div class="share" id="share" aria-hidden="true"></div>
           <div class="hand-tools">
@@ -430,7 +430,7 @@ class Detector {
 const pickN = sr => { let n = 1<<Math.round(Math.log2(sr*0.34)); return Math.min(32768, Math.max(4096, n)); };
 
 /* smoothing + point accumulation, shared by mic and file analysis.
-   point = [t, hz (0 = not spinning), dB, loudest click dB] */
+   point = [t, hz (0 = not spinning), dB, loudest click dB, mean harmonic clarity] */
 class Pipeline {
   constructor(gate){ this.gate=gate; this.win=[]; this.off=0; this.acc=[]; this.pts=[]; this.nextT=POINT_DT; this.cur={hz:0,db:-100,on:false}; }
   feed(r, t){
@@ -439,14 +439,15 @@ class Pipeline {
     if (on){ this.off=0; this.win.push(r.hz); if (this.win.length>5) this.win.shift(); hz = median(this.win); }
     else { this.off++; if (this.off<3 && this.win.length) hz = median(this.win); else this.win=[]; }
     this.cur = {hz, db:r.db, on: hz>0};
-    this.acc.push([hz, r.db, r.burst||0]);
+    this.acc.push([hz, r.db, r.burst||0, Math.max(-5, Math.min(30, r.score||0))]);
     let added = false;
     while (t >= this.nextT){
       const act = this.acc.filter(a=>a[0]>0);
       const ph = this.acc.length && act.length >= this.acc.length/2 ? median(act.map(a=>a[0])) : 0;
       const pd = this.acc.length ? this.acc.reduce((s,a)=>s+a[1],0)/this.acc.length : -100;
       const pb = this.acc.reduce((m,a)=>Math.max(m,a[2]),0);
-      this.pts.push([+(this.nextT-POINT_DT).toFixed(1), +ph.toFixed(2), +pd.toFixed(1), +pb.toFixed(1)]);
+      const ps = this.acc.length ? this.acc.reduce((s,a)=>s+a[3],0)/this.acc.length : 0;
+      this.pts.push([+(this.nextT-POINT_DT).toFixed(1), +ph.toFixed(2), +pd.toFixed(1), +pb.toFixed(1), +ps.toFixed(1)]);
       this.acc = []; this.nextT += POINT_DT; added = true;
     }
     return added;
@@ -500,9 +501,38 @@ function cleanTransitions(pts){
 const cleanSession = pts => dropShortRuns(despike(cleanTransitions(pts)), 3);
 
 /* ---------- hand switches ----------
-   A switch = the tone breaks off briefly (≤ 6 s) AND a click is heard, after at least 8 s of spinning
-   since the previous switch (so a regrip right after switching is not counted twice). */
+   Measured on real recordings, a hand switch looks like this:
+   1. the clean harmonic buzz breaks up for 1–5 s (the ball rattles while it changes hands),
+   2. then spinning resumes clearly SLOWER (≥8% lower rpm) or QUIETER (≥5 dB) – the other hand spins it up again,
+   3. and at least 8 s of spinning happened since the previous switch.
+   A regrip (short clack, same speed, same or louder) fails 1 and 2. */
+const CLARITY_MIN = 4.6;
 function autoSwitches(pts){
+  if (!pts.some(p=>p.length>4)) return legacySwitches(pts);
+  const n=pts.length, out=[], act=i=>pts[i][1]>0;
+  const broken = i => !act(i) || (pts[i][4]!=null && pts[i][4] < CLARITY_MIN);
+  let since=0, i=0;
+  while (i<n){
+    if (!broken(i)){ since+=POINT_DT; i++; continue; }
+    let j=i; while (j<n && broken(j)) j++;
+    const len=(j-i)*POINT_DT;
+    if (len>=1 && len<=5 && since>=8){
+      const pre=[], post=[];
+      for (let k=i-1; k>=0 && pre.length<6 && k>=i-12; k--) if (act(k) && !broken(k)) pre.push(pts[k]);
+      for (let k=j; k<n && post.length<4 && k<j+12; k++) if (act(k)) post.push(pts[k]);   // first ~2 s of the new hand
+      if (pre.length>=4 && post.length>=4){
+        const rpmPre=median(pre.map(p=>p[1])), rpmPost=median(post.map(p=>p[1]));
+        const dbPre=median(pre.map(p=>p[2])), dbPost=median(post.map(p=>p[2]));
+        if (rpmPost <= rpmPre*0.92 || dbPost <= dbPre-5){ out.push(+pts[i][0].toFixed(1)); since=0; i=j; continue; }
+      }
+    }
+    if (len>5) since=0;   // a long pause is a rest, not a switch
+    i=j;
+  }
+  return out;
+}
+/* older records without clarity data: tone break + click */
+function legacySwitches(pts){
   const out=[]; let since=0, i=0;
   while (i<pts.length){
     if (pts[i][1]>0){ since+=POINT_DT; i++; continue; }
